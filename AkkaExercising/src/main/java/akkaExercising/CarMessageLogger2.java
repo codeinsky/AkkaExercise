@@ -7,7 +7,7 @@ import scala.PartialFunction;
 import scala.runtime.BoxedUnit;
 
 
-public class Category2 extends AbstractActorWithStash{
+public class CarMessageLogger2 extends AbstractActorWithStash{
 	  
 	
 	private final PartialFunction<Object, BoxedUnit> stashing;
@@ -16,19 +16,19 @@ public class Category2 extends AbstractActorWithStash{
 
 	
 	static Props props() {
-		return Props.create(Category2.class);
+		return Props.create(CarMessageLogger2.class);
 	}
 	
 	{
 		stashing = ReceiveBuilder
-				.match(ParentRouter.Message.class ,  msg ->{ loggerStash(msg , this);})
+				.match(ParentRouterWatcher.Message.class ,  msg ->{ loggerStash(msg , this);})
 				.matchEquals("ping", msg -> { 
 					sender().tell("pong", self());
 					})
 				.build();
 		
 		proccessing = ReceiveBuilder
-				.match(ParentRouter.Message.class ,  msg ->{ loggerProccess(msg , this);})
+				.match(ParentRouterWatcher.Message.class ,  msg ->{ loggerProccess(msg , this);})
 				.matchEquals("ping", msg -> { 
 					sender().tell("pong", self());
 					})
@@ -38,7 +38,7 @@ public class Category2 extends AbstractActorWithStash{
 	
 	
 
-	private void loggerStash(ParentRouter.Message message , UnrestrictedStash stash) {
+	private void loggerStash(ParentRouterWatcher.Message message , UnrestrictedStash stash) {
 			count++;
 			stash.stash();
 			System.out.println("Stashing messages Category 2, Message number " + count);
@@ -52,7 +52,7 @@ public class Category2 extends AbstractActorWithStash{
 	
 	}
 	
-	private void loggerProccess(ParentRouter.Message message , UnrestrictedStash stash ) {
+	private void loggerProccess(ParentRouterWatcher.Message message , UnrestrictedStash stash ) {
 		System.out.println("Message proccesed by Car Category 2 " +  message.messageBody);
 			count--;
 			if (count==0) {

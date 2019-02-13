@@ -8,7 +8,7 @@ public class ActorSystemTest {
 	
 	public static void main(String[] args) throws InterruptedException {
 		ActorSystem system = ActorSystem.create("system" );
-		final ActorRef parent = system.actorOf(ParentRouter.props().withDispatcher("my-pinned-dispatcher") , "parent");
+		final ActorRef parent = system.actorOf(ParentRouterWatcher.props().withDispatcher("my-pinned-dispatcher") , "parent");
 		parent.tell("pingStart", ActorRef.noSender());
 		
 //		for (int i = 0 ; i <20 ; i ++) {

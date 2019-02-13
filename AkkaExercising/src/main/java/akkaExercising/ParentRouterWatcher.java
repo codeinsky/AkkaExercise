@@ -14,8 +14,8 @@ import akka.pattern.Patterns;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Duration;
-public class ParentRouter  extends AbstractLoggingActor{
-	
+public class ParentRouterWatcher  extends AbstractLoggingActor{
+	// Car message class , message Header is for different car types
 	static class Message {
 		public final String categoryHeader;
 		public final String messageBody;
@@ -24,17 +24,26 @@ public class ParentRouter  extends AbstractLoggingActor{
 			this.messageBody = messageBody;
 		}
 	}
+	//Timer object  for ping loop 
 	Timer t  = null; 
+	
 	static int pingCounter1 = 0;
 	static int pingCounter2 = 0;
+	
 	private int model1Counter = 0;
 	private int model2Counter = 0;
 	
-	 ActorRef model1 = getContext().actorOf(Category1.props().withDispatcher("my-pinned-dispatcher"), "category1");
-	 ActorRef model2 = getContext().actorOf(Category2.props().withDispatcher("my-pinned-dispatcher"), "category2");
+	// Parent creating two children(TWO loggers)
+	// System could be improved with creating collection of 
+	// children (loggers) instances with "pinned" dispatcher - one thread for each actor 
+	 ActorRef model1 = getContext().actorOf(CarMessageLogger1.props().withDispatcher("my-pinned-dispatcher"), "category1");
+	 ActorRef model2 = getContext().actorOf(CarMessageLogger2.props().withDispatcher("my-pinned-dispatcher"), "category2");
 	
 	{
-		
+		// Parent actor initialization block 
+		// How to behave for per any message 
+		// *KillTest if for test 
+		// *reCreate is for system test - creates instance of child 
 		  receive(ReceiveBuilder
 	                .match(Message.class, msg -> {forward(msg);})
 	                .matchEquals("pingStart", msg -> {System.out.println("Recived " + msg);ping("start");})
@@ -47,7 +56,8 @@ public class ParentRouter  extends AbstractLoggingActor{
 		
 	}
 	
-	
+	// Ping loop , timer with repeated function pingAction();-> see below
+	// every 5 seconds 
 	public void ping(String command) {
 		TimerTask pingTask = null;  
 			
@@ -63,16 +73,20 @@ public class ParentRouter  extends AbstractLoggingActor{
 
 		t.schedule(pingTask , 0, 5000);
 		}
+	// stopping Pining with message PingStop 
 	else if(command.equals("stop")) {
 		System.out.println("Ping stopped");
 		t.cancel();
-		pingCounter1 = 0;
+		pingCounter1 = 0; 
 		pingCounter2 = 0;
 	}	
 	}
 
 	
-	
+	//PingAction() 
+	// Send ASK request for each logger and waiting for future Object 
+	// After TimeOut of 10 seconds throws exception 
+	// and sends Logger for Kill with poison Pill
 	
 	public void pingAction()  {
 			Future<Object> future1 = Patterns.ask(model1, "ping", 10000);
@@ -93,13 +107,13 @@ public class ParentRouter  extends AbstractLoggingActor{
 				killingModel("modle2");
 			}
 		}
-	
+	// Killing process and new instance re create 
 	public void killingModel(String victim) {
 		switch (victim) {
 		case "model1":
 			model1.tell(PoisonPill.getInstance(), ActorRef.noSender());
 			log().info("model1 instance killed with poison Pill");
-			ActorRef newActor = getContext().actorOf(Category1.props(), "category1");
+			ActorRef newActor = getContext().actorOf(CarMessageLogger1.props(), "category1");
 			model1 = newActor;
 			log().info("New instance created");
 			break;
@@ -107,7 +121,7 @@ public class ParentRouter  extends AbstractLoggingActor{
 		case "model2":
 			model2.tell(PoisonPill.getInstance(), ActorRef.noSender());
 			log().info("model1 instance killed with poison Pill");
-			ActorRef Actor = getContext().actorOf(Category1.props(), "category1");
+			ActorRef Actor = getContext().actorOf(CarMessageLogger1.props(), "category1");
 			model1 = Actor;
 			log().info("New instance created");
 			break;
@@ -122,11 +136,12 @@ public class ParentRouter  extends AbstractLoggingActor{
 	}
 	// Testing creating 
 	public void reCreate() {
-		ActorRef newActor = getContext().actorOf(Category1.props(), "category1");
+		ActorRef newActor = getContext().actorOf(CarMessageLogger1.props()
+				.withDispatcher("my-pinned-dispatcher"), "category1");
 		model1 = newActor;
 		System.out.println("model1 created");
 	}
-	
+	// Forwarding of messages by time to the loggers 
 	private void forward(Message msg) {
 		if (msg.categoryHeader.equals("category1")) {
 			model1.forward(msg, getContext());
@@ -140,15 +155,16 @@ public class ParentRouter  extends AbstractLoggingActor{
 		}
 		
 	}
-	
+	// Message in case of wrong message told to the parent actor
 	private void wrongFormat(Object msg) {
 		log().info("Wron message format");
 	}
 	
 	public static Props props() {
-		return Props.create(ParentRouter.class);
+		return Props.create(ParentRouterWatcher.class);
 	}
-	
+	// SuperVision Strategy , restarts the Child(Logger in case of thrown ecpetions 
+	//from the child)
 	public SupervisorStrategy supervisorStrategy() {
         return new OneForOneStrategy(
                 10,
