@@ -30,8 +30,8 @@ public class ParentRouter  extends AbstractLoggingActor{
 	private int model1Counter = 0;
 	private int model2Counter = 0;
 	
-	 ActorRef model1 = getContext().actorOf(Category1.props(), "category1");
-	 ActorRef model2 = getContext().actorOf(Category2.props(), "category2");
+	 ActorRef model1 = getContext().actorOf(Category1.props().withDispatcher("my-pinned-dispatcher"), "category1");
+	 ActorRef model2 = getContext().actorOf(Category2.props().withDispatcher("my-pinned-dispatcher"), "category2");
 	
 	{
 		
